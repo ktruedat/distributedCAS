@@ -6,7 +6,11 @@ import (
 )
 
 func main() {
-	transport := p2p.NewTCPTransport(":3000")
+	tcpOpts := p2p.TCPTransportOpts{
+		ListenAddr:    ":3000",
+		HandshakeFunc: p2p.NOPHandshakeFunc,
+	}
+	transport := p2p.NewTCPTransport(tcpOpts)
 	if err := transport.ListenAndAccept(); err != nil {
 		log.Fatal(err)
 	}
