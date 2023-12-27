@@ -20,6 +20,11 @@ func NewTCPPeer(conn net.Conn, outbound bool) *TCPPeer {
 	return &TCPPeer{conn: conn, outbound: outbound}
 }
 
+// Close implements the Peer interface
+func (p *TCPPeer) Close() error {
+	return p.conn.Close()
+}
+
 type TCPTransportOpts struct {
 	ListenAddr    string
 	HandshakeFunc HandshakeFunc
@@ -29,12 +34,20 @@ type TCPTransportOpts struct {
 type TCPTransport struct {
 	TCPTransportOpts
 	listener net.Listener
+	rpcch    chan RPC
 	mu       sync.RWMutex
 	peers    map[net.Addr]Peer
 }
 
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
-	return &TCPTransport{TCPTransportOpts: opts}
+	return &TCPTransport{TCPTransportOpts: opts, rpcch: make(chan RPC)}
+}
+
+// Consume implements the transport interface which
+// will return read-only channel for reading incoming messages received from
+// another peer
+func (transport *TCPTransport) Consume() <-chan RPC {
+	return transport.rpcch
 }
 
 func (transport *TCPTransport) ListenAndAccept() error {
@@ -69,13 +82,14 @@ func (transport *TCPTransport) handleConn(conn net.Conn) {
 	}
 
 	// Read loop
-	rpc := &RPC{}
+	rpc := RPC{}
 	for {
-		if err := transport.Decoder.Decode(conn, rpc); err != nil {
+		if err := transport.Decoder.Decode(conn, &rpc); err != nil {
 			fmt.Printf("TCP error: %s\n", err)
 			continue
 		}
 		rpc.From = conn.RemoteAddr()
+		transport.rpcch <- rpc
 		fmt.Printf("RPC: %+v\n", rpc)
 	}
 
