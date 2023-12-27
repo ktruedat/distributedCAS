@@ -29,6 +29,7 @@ type TCPTransportOpts struct {
 	ListenAddr    string
 	HandshakeFunc HandshakeFunc
 	Decoder       Decoder
+	OnPeer        func(Peer) error
 }
 
 type TCPTransport struct {
@@ -36,7 +37,6 @@ type TCPTransport struct {
 	listener net.Listener
 	rpcch    chan RPC
 	mu       sync.RWMutex
-	peers    map[net.Addr]Peer
 }
 
 func NewTCPTransport(opts TCPTransportOpts) *TCPTransport {
@@ -74,11 +74,21 @@ func (transport *TCPTransport) startAcceptLoop() {
 type Temp struct{}
 
 func (transport *TCPTransport) handleConn(conn net.Conn) {
-	peer := NewTCPPeer(conn, true)
-	if err := transport.HandshakeFunc(peer); err != nil {
+	var err error
+	defer func() {
+		fmt.Printf("dropping peer connection: %v", err)
 		conn.Close()
-		fmt.Printf("TCP handshake error: %v\n", err)
+	}()
+	peer := NewTCPPeer(conn, true)
+
+	if err = transport.HandshakeFunc(peer); err != nil {
 		return
+	}
+
+	if transport.OnPeer != nil {
+		if err = transport.OnPeer(peer); err != nil {
+			return
+		}
 	}
 
 	// Read loop
