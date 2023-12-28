@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
@@ -25,17 +26,17 @@ func CASPathTransformFunc(key string) PathKey {
 
 	return PathKey{
 		PathName: strings.Join(paths, "/"),
-		Original: hashStr,
+		FileName: hashStr,
 	}
 }
 
 type PathKey struct {
 	PathName string
-	Original string
+	FileName string
 }
 
-func (p PathKey) Filename() string {
-	return fmt.Sprintf("%s/%s", p.PathName, p.Original)
+func (p PathKey) FullPath() string {
+	return fmt.Sprintf("%s/%s", p.PathName, p.FileName)
 }
 
 type StoreOpts struct {
@@ -54,6 +55,25 @@ func NewStore(opts StoreOpts) *Store {
 	return &Store{StoreOpts: opts}
 }
 
+func (s *Store) Read(key string) (io.Reader, error) {
+	f, err := s.readStream(key)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	buf := new(bytes.Buffer)
+	_, err = io.Copy(buf, f)
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+func (s *Store) readStream(key string) (io.ReadCloser, error) {
+	pathKey := s.PathTransformFunc(key)
+	return os.Open(pathKey.FullPath())
+}
+
 func (s *Store) writeStream(key string, r io.Reader) error {
 	pathKey := s.PathTransformFunc(key)
 
@@ -61,7 +81,7 @@ func (s *Store) writeStream(key string, r io.Reader) error {
 		return err
 	}
 
-	pathAndFilename := pathKey.Filename()
+	pathAndFilename := pathKey.FullPath()
 
 	f, err := os.Create(pathAndFilename)
 	if err != nil {
