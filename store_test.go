@@ -8,11 +8,15 @@ import (
 
 func TestPathTransformFunc(t *testing.T) {
 	key := "sometestpic"
-	pathname := CASPathTransformFunc(key)
+	pathKey := CASPathTransformFunc(key)
 	expectedPathname := ""
-	fmt.Println(pathname)
-	if pathname != expectedPathname {
-		t.Errorf("have %s want %s", pathname, expectedPathname)
+	expectedPathnameOriginal := ""
+	fmt.Println(pathKey)
+	if pathKey.PathName != expectedPathname {
+		t.Errorf("have %s want %s", pathKey.PathName, expectedPathname)
+	}
+	if pathKey.Original != expectedPathnameOriginal {
+		t.Errorf("have %s want %s", pathKey.Original, expectedPathnameOriginal)
 	}
 }
 
