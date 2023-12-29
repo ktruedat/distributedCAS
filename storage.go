@@ -25,14 +25,16 @@ func CASPathTransformFunc(key string) PathKey {
 	}
 
 	return PathKey{
-		PathName: strings.Join(paths, "/"),
-		FileName: hashStr,
+		PathName:       strings.Join(paths, "/"),
+		FileName:       hashStr,
+		FirstPathSplit: paths[0],
 	}
 }
 
 type PathKey struct {
-	PathName string
-	FileName string
+	PathName       string
+	FileName       string
+	FirstPathSplit string
 }
 
 func (p PathKey) FullPath() string {
@@ -55,12 +57,21 @@ func NewStore(opts StoreOpts) *Store {
 	return &Store{StoreOpts: opts}
 }
 
+func (s *Store) Has(key string) bool {
+	pathKey := s.PathTransformFunc(key)
+	_, err := os.Stat(pathKey.FullPath())
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (s *Store) Delete(key string) error {
 	pathKey := s.PathTransformFunc(key)
 	defer func() {
 		log.Printf("deleted [%s] from disk", pathKey.FileName)
 	}()
-	return os.RemoveAll(pathKey.FullPath())
+	return os.RemoveAll(pathKey.FirstPathSplit)
 }
 
 func (s *Store) Read(key string) (io.Reader, error) {
