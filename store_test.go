@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"testing"
 )
 
@@ -24,8 +25,19 @@ func TestStore(t *testing.T) {
 	opts := StoreOpts{PathTransformFunc: CASPathTransformFunc}
 	s := NewStore(opts)
 
-	data := bytes.NewReader([]byte("some jpg bytes"))
-	if err := s.writeStream("somepic", data); err != nil {
+	key := "specialpic"
+	data := []byte("some jpg bytes")
+	if err := s.writeStream(key, bytes.NewReader(data)); err != nil {
 		t.Error(err)
 	}
+	r, err := s.Read(key)
+	if err != nil {
+		t.Error(err)
+	}
+	b, _ := io.ReadAll(r)
+	fmt.Println(string(b))
+	if string(b) != string(data) {
+		t.Errorf("Want %v have %v", data, b)
+	}
+
 }
